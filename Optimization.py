@@ -26,27 +26,34 @@ num_runs = 1
 resultList = []
 
 tickers=["MSFT", "AAPL", "GOOG"]
+
 # Define which assets you are going to use here
 # Generate expected return and covariance matrix from (random) time-series
 stocks = [("TICKER%s" % i) for i in range(num_assets)]
 data = YahooDataProvider(
 tickers,
-start=datetime.datetime(2021, 1, 1),
-end=datetime.datetime(2021, 4, 30),
+start = datetime.datetime(2021, 1, 1),
+end = datetime.datetime(2021, 4, 30),
 )
+
 data.run()
+
 mu = data.get_period_return_mean_vector()
 sigma = data.get_period_return_covariance_matrix()
+
 # plot sigma
 plt.imshow(sigma, interpolation="nearest")
 plt.show()
+
 q = 0.8  # set risk factor
+
 budget = num_assets/2 # set budget
 penalty = 0.1  # set parameter to scale the budget penalty term
 
 portfolio = PortfolioOptimization(
-    expected_returns=mu, covariances=sigma, risk_factor=q, budget=budget
+    expected_returns = mu, covariances = sigma, risk_factor = q, budget = budget
 )
+
 qp = portfolio.to_quadratic_program()
 qp
 
@@ -70,7 +77,7 @@ def print_result(result):
         x = np.array([int(i) for i in list(reversed(k))])
         value = portfolio.to_quadratic_program().objective.evaluate(x)
         print("%10s\t%.4f\t\t%.4f" % (x, value, v))
-          
+         
 
 from qiskit.utils import algorithm_globals
 
@@ -83,16 +90,23 @@ cobyla.set_options(maxiter=500)
 ry = TwoLocal(num_assets, "ry", "cz", reps=3, entanglement="full")
 vqe_mes = SamplingVQE(sampler=Sampler(), ansatz=ry, optimizer=cobyla)
 vqe = MinimumEigenOptimizer(vqe_mes)
+
 result = vqe.solve(qp)
+
 print_result(result)
+
 ##Gets the highest value out of all the selections and its corresponding selection
 selection = result.x
 value = result.fval
 eigenstate = result.min_eigen_solver_result.eigenstate
+
 Scores=[]
+
 for asset in range(num_assets):
      Scores.append(0)
+
      ##Each score starts at zero
+
 ##Creates an array of scores that have a corresponding asset
 ##Depending on the value of a given selection the stocks in that selection will be given a value that is added to their score
 ##The Score will be as a percentage of the optimal value
@@ -104,49 +118,68 @@ probabilities = (
             if isinstance(eigenstate, QuasiDistribution)
             else {k: np.abs(v) ** 2 for k, v in eigenstate.to_dict().items()}
     )
+
 probabilities = sorted(probabilities.items(), key=lambda x: x[1], reverse=True)
+
+
 def calculateScore(value):
+
      Bestval=result.fval
      #Lowest Energy level
+
      lowestval=-100
      #Gets all the values from the array or results
+
      for k, v in probabilities:
+
           x = np.array([int(i) for i in list(reversed(k))])
           values = portfolio.to_quadratic_program().objective.evaluate(x)
-          if(values>lowestval):##Checks to see if the Value is the lowest so we can get the arrangement with the lowest amount of assets
+
+          if(values>lowestval): ##Checks to see if the Value is the lowest so we can get the arrangement with the lowest amount of assets
                lowestval=values
+
      print(lowestval)
      print(Bestval)
-     return 1-((Bestval-value)/(Bestval-lowestval))##Returns the score from a value from 0-1 with the worst (highest energy level) having a score of 1 and the highest having a score of 0
+
+     return 1 - ((Bestval - value) / (Bestval - lowestval)) ##Returns the score from a value from 0-1 with the worst (highest energy level) having a score of 1 and the highest having a score of 0
+
+
 ##Calculates the Score for each asset
 for k, v in probabilities:
-        
+       
         x = np.array([int(i) for i in list(reversed(k))])
         value = portfolio.to_quadratic_program().objective.evaluate(x)
        
-        score=calculateScore(value)
-       ##Gets the score of the arrangement
-        count=0
+        score = calculateScore(value)
+        ##Gets the score of the arrangement
+ 
+        count = 0
+        
         ##Iterates through set of assets and adds score to total count if assets exists in the set
         for i in list(reversed(k)):
-            if(int(i)==1):
+            if (int(i) == 1):
+                
                 print("hello")
-                Scores[count]+=score
-            count=count+1
+                Scores[count] += score
+            
+            count += 1
 
 def sum_numbers(numbers):
+     
      total = 0
+     
      for number in numbers:
          total += number
      return total
+
 ##Asset Weighting(how much you should invest in each asset)
 AssetWeightings=[]
+
 ##Creates array with AssetWeightings
 for asset in range(num_assets):
      AssetWeightings.append(Scores[asset]/sum_numbers(Scores))
-##prints the different assets and the wieghting associated with them     
+
+##prints the different assets and the wieghting associated with them    
 for ticks in range(num_assets):
     print(tickers[ticks]+" "+str(round(AssetWeightings[ticks]*100,3))+"%")
     ##s
-
-
